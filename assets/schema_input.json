@@ -1,0 +1,39 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "sample": { 
+                "type": "string", 
+                "pattern": "^[a-zA-Z0-9_\\-]+$",
+                "minLength": 1
+            },
+            "timepoint": { 
+                "type": "integer", 
+                "minimum": 0
+            },
+            "treatment": { 
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!\\s*$).+"
+            },
+            "replicate": { 
+                "type": "integer", 
+                "minimum": 0 
+            },
+            "fastq_1": { 
+                "type": "string", 
+                "format": "file-path",
+                "pattern": "\\.(fastq|fq)(\\.gz)?$"
+            },
+            "fastq_2": { 
+                "type": "string", 
+                "format": "file-path",
+                "pattern": "\\.(fastq|fq)(\\.gz)?$"
+            }
+        },
+        "required": ["sample", "timepoint", "treatment", "replicate", "fastq_1", "fastq_2"],
+        "additionalProperties": false
+    }
+}
