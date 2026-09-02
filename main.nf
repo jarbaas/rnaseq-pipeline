@@ -1,5 +1,3 @@
-nextflow.enable.dsl=2
-
 include { samplesheetToList }           from 'plugin/nf-schema'
 include { FASTQC as FASTQC_RAW }        from './modules/nf-core/fastqc/main'
 include { FASTQC as FASTQC_TRIMMED }    from './modules/nf-core/fastqc/main'
@@ -20,7 +18,7 @@ workflow {
 
     def clinical_samplesheet = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
     
-    Channel.fromList(clinical_samplesheet)
+    ch_reads = Channel.fromList(clinical_samplesheet)
         .map { sample, timepoint, treatment, replicate, fastq_1, fastq_2 ->
             def sample_id = "${sample}_${treatment}_d${timepoint}_r${replicate}"
             
@@ -35,11 +33,10 @@ workflow {
             
             return tuple(meta, [ file(fastq_1), file(fastq_2) ])
         }
-        .set { ch_reads }
 
-    ch_fasta = Channel.value(tuple([id: 'genome'], file(params.fasta)))
-    ch_star_index = Channel.value(tuple([id: 'star_index'], file(params.star_index)))
-    ch_gtf = Channel.value(tuple([id: 'genome'], file(params.gtf)))
+    ch_fasta = Channel.value(tuple([id: 'genome'], file(params.fasta, checkIfExists: true)))
+    ch_star_index = Channel.value(tuple([id: 'star_index'], file(params.star_index, checkIfExists: true)))
+    ch_gtf = Channel.value(file(params.gtf, checkIfExists: true))
 
     FASTQC_RAW(ch_reads)
     
@@ -58,14 +55,10 @@ workflow {
 
     ch_featurecounts_input = PARABRICKS_RNAFQ2BAM.out.bam
         .combine(ch_gtf)
-        .map { meta, bam, meta_gtf, gtf -> 
-            tuple(meta, bam, gtf) 
-        }
 
     SUBREAD_FEATURECOUNTS(ch_featurecounts_input)
 
     ch_count_matrix_input = SUBREAD_FEATURECOUNTS.out.counts
-        .map { meta, counts -> tuple(meta, counts) }
         .collect(flat: false)
         .map { count_tuples ->
             def count_files = count_tuples.collect { item -> item[1] }
@@ -105,7 +98,7 @@ process GENERATE_COUNT_MATRIX {
     def manifest_rows = count_tuples.collect { item ->
         def meta = item[0]
         def count_file = item[1]
-        "${meta.id}\t${count_file.getName()}"
+        "${meta.id}\t${count_file}"
     }.join('\n')
     
     """
@@ -129,26 +122,21 @@ for filename in manifest['count_file']:
 
 matrix = None
 metadata_columns = {'Geneid', 'Chr', 'Start', 'End', 'Strand', 'Length'}
+dataframes = []
 
 for row in manifest.itertuples(index=False):
-    df = pd.read_csv(row.count_file, sep='\\t', comment='#')
-    
-    if 'Geneid' not in df.columns:
-        raise ValueError(f'{row.count_file} is not a featureCounts table: Geneid is absent.')
-        
+    df = pd.read_csv(row.count_file, sep='\t', comment='#')
     count_columns = [col for col in df.columns if col not in metadata_columns]
     
-    if len(count_columns) != 1:
-        raise ValueError(f'{row.count_file} has {len(count_columns)} count columns; this expects exactly one.')
+    sample_counts = df.set_index('Geneid')[count_columns[0]].rename(row.sample_id)
+    dataframes.append(sample_counts)
 
-    sample_counts = df[['Geneid', count_columns[0]]].rename(columns={count_columns[0]: row.sample_id})
-    
-    matrix = sample_counts if matrix is None else matrix.merge(sample_counts, on='Geneid', how='outer')
+matrix = pd.concat(dataframes, axis=1).reset_index()
 
 matrix = matrix.fillna(0)
 sample_columns = [col for col in matrix.columns if col != 'Geneid']
 matrix[sample_columns] = matrix[sample_columns].astype('int64')
-matrix.to_csv('gene_counts.tsv', sep='\\t', index=False)
+matrix.to_csv('gene_counts.tsv', sep='\t', index=False)
 PYTHON
     """
 }
