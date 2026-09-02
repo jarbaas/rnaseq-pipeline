@@ -1,4 +1,10 @@
 .nextflow/
 work/
 results/
+samplesheet.csv
+*.fastq.gz
+*.fa
+*.gtf
+dummy_dir/
+.nextflow.log*
 

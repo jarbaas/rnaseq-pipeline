@@ -8,27 +8,29 @@ include { PARABRICKS_RNAFQ2BAM }        from './modules/nf-core/parabricks/rnafq
 include { SUBREAD_FEATURECOUNTS }       from './modules/nf-core/subread/featurecounts/main'
 include { MULTIQC }                     from './modules/nf-core/multiqc/main'
 
-if (!params.input) { exit 1, "ERROR: --input parameter is missing." }
-if (!params.fasta || !params.star_index || !params.gtf) { 
-    exit 1, "ERROR: --fasta, --star_index, and --gtf are required." 
-}
 
 workflow {
+    if (!params.input) { exit 1, "ERROR: --input parameter is missing." }
+    if (!params.fasta || !params.star_index || !params.gtf) { 
+    exit 1, "ERROR: --fasta, --star_index, and --gtf are required." 
+    }
 
     def clinical_samplesheet = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
     
     Channel.fromList(clinical_samplesheet)
-        .map { row ->
-            def sample_id = "${row.sample}_${row.treatment}_d${row.timepoint}_r${row.replicate}"
+        .map { sample, timepoint, treatment, replicate, fastq_1, fastq_2 ->
+            def sample_id = "${sample}_${treatment}_d${timepoint}_r${replicate}"
+            
             def meta = [
                 id:         sample_id,
-                sample:     row.sample,
+                sample:     sample,
                 single_end: false,
-                timepoint:  row.timepoint,
-                treatment:  row.treatment,
-                replicate:  row.replicate
+                timepoint:  timepoint,
+                treatment:  treatment,
+                replicate:  replicate
             ]
-            return tuple(meta, [ file(row.fastq_1), file(row.fastq_2) ])
+            
+            return tuple(meta, [ file(fastq_1), file(fastq_2) ])
         }
         .set { ch_reads }
 
@@ -51,19 +53,22 @@ workflow {
         false  
     )
 
-    ch_featurecounts_input = PARABRICKS_RNAFQ2BAM.out.bam.map { meta, bam -> tuple(meta, bam, []) }
-    SUBREAD_FEATURECOUNTS(
-        ch_featurecounts_input, 
-        ch_gtf
-    )
+    ch_featurecounts_input = PARABRICKS_RNAFQ2BAM.out.bam
+        .combine(ch_gtf)
+        .map { meta, bam, meta_gtf, gtf -> 
+            tuple(meta, bam, gtf) 
+        }
+
+    SUBREAD_FEATURECOUNTS(ch_featurecounts_input)
 
     ch_count_matrix_input = SUBREAD_FEATURECOUNTS.out.counts
         .map { meta, counts -> tuple(meta, counts) }
-        .collect()
+        .collect(flat: false)
         .map { count_tuples ->
             def count_files = count_tuples.collect { item -> item[1] }
             tuple(count_tuples, count_files)
         }
+    
 
     GENERATE_COUNT_MATRIX(ch_count_matrix_input)
     
@@ -101,46 +106,46 @@ process GENERATE_COUNT_MATRIX {
     }.join('\n')
     
     """
-    cat > count_manifest.tsv <<'EOF'
+cat > count_manifest.tsv <<'EOF'
 sample_id\tcount_file
 ${manifest_rows}
 EOF
 
-    python3 - <<'PYTHON'
-    import pandas as pd
-    from pathlib import Path
+python3 - <<'PYTHON'
+import pandas as pd
+from pathlib import Path
 
-    manifest = pd.read_csv('count_manifest.tsv', sep='\\t')
+manifest = pd.read_csv('count_manifest.tsv', sep='\\t')
+
+if manifest.empty:
+    raise SystemExit('No successful featureCounts outputs were available to merge.')
+
+for filename in manifest['count_file']:
+    if not Path(filename).is_file():
+        raise FileNotFoundError(f'Expected staged featureCounts result was not found: {filename}')
+
+matrix = None
+metadata_columns = {'Geneid', 'Chr', 'Start', 'End', 'Strand', 'Length'}
+
+for row in manifest.itertuples(index=False):
+    df = pd.read_csv(row.count_file, sep='\\t', comment='#')
     
-    if manifest.empty:
-        raise SystemExit('No successful featureCounts outputs were available to merge.')
-
-    for filename in manifest['count_file']:
-        if not Path(filename).is_file():
-            raise FileNotFoundError(f'Expected staged featureCounts result was not found: {filename}')
-
-    matrix = None
-    metadata_columns = {'Geneid', 'Chr', 'Start', 'End', 'Strand', 'Length'}
-
-    for row in manifest.itertuples(index=False):
-        df = pd.read_csv(row.count_file, sep='\\t', comment='#')
+    if 'Geneid' not in df.columns:
+        raise ValueError(f'{row.count_file} is not a featureCounts table: Geneid is absent.')
         
-        if 'Geneid' not in df.columns:
-            raise ValueError(f'{row.count_file} is not a featureCounts table: Geneid is absent.')
-            
-        count_columns = [col for col in df.columns if col not in metadata_columns]
-        
-        if len(count_columns) != 1:
-            raise ValueError(f'{row.count_file} has {len(count_columns)} count columns; this expects exactly one.')
+    count_columns = [col for col in df.columns if col not in metadata_columns]
+    
+    if len(count_columns) != 1:
+        raise ValueError(f'{row.count_file} has {len(count_columns)} count columns; this expects exactly one.')
 
-        sample_counts = df[['Geneid', count_columns[0]]].rename(columns={count_columns[0]: row.sample_id})
-        
-        matrix = sample_counts if matrix is None else matrix.merge(sample_counts, on='Geneid', how='outer')
+    sample_counts = df[['Geneid', count_columns[0]]].rename(columns={count_columns[0]: row.sample_id})
+    
+    matrix = sample_counts if matrix is None else matrix.merge(sample_counts, on='Geneid', how='outer')
 
-    matrix = matrix.fillna(0)
-    sample_columns = [col for col in matrix.columns if col != 'Geneid']
-    matrix[sample_columns] = matrix[sample_columns].astype('int64')
-    matrix.to_csv('gene_counts.tsv', sep='\\t', index=False)
-    PYTHON
+matrix = matrix.fillna(0)
+sample_columns = [col for col in matrix.columns if col != 'Geneid']
+matrix[sample_columns] = matrix[sample_columns].astype('int64')
+matrix.to_csv('gene_counts.tsv', sep='\\t', index=False)
+PYTHON
     """
 }
