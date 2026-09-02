@@ -12,4 +12,7 @@ dummy_dir/
 *.fq.gz
 *.sa
 Homo_sapiens_assembly38.*
+assets/test_data
+*.out
+/results_yeast_test/
 
