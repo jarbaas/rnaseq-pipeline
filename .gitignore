@@ -7,4 +7,9 @@ samplesheet.csv
 *.gtf
 dummy_dir/
 .nextflow.log*
+*.tar.gz
+*.bam
+*.fq.gz
+*.sa
+Homo_sapiens_assembly38.*
 
