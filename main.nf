@@ -10,6 +10,9 @@ include { MULTIQC }                     from './modules/nf-core/multiqc/main'
 
 
 workflow {
+    if (!workflow.profile) { 
+        exit 1, "ERROR: Please specify an execution profile (-profile standard or -profile portable)." 
+    }
     if (!params.input) { exit 1, "ERROR: --input parameter is missing." }
     if (!params.fasta || !params.star_index || !params.gtf) { 
     exit 1, "ERROR: --fasta, --star_index, and --gtf are required." 
