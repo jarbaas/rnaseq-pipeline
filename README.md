@@ -51,7 +51,7 @@ nextflow run main.nf \
 Upon completion, the pipeline automatically defaults the following files to the results/ directory:
 
 - `counts/gene_counts.tsv`: The count matrix prepared for downstream differential expression analysis.
-- 
+
 - `counts/count_manifest.tsv`: TSV record of which samples were processed by featureCounts and integrated into the count matrix.
 
 - `MultiQC/multiqc_report.html`: An HTML report detailing read survival rates, alignment scores, and specifics on why any dropped samples failed mid-run.
