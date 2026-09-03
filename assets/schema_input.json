@@ -20,7 +20,7 @@
             },
             "replicate": { 
                 "type": "integer", 
-                "minimum": 0 
+                "minimum": 1 
             },
             "fastq_1": { 
                 "type": "string", 
