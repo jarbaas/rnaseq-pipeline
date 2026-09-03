@@ -23,7 +23,7 @@ The pipeline is modular and scalable because it uses individual modules from nf-
 
 *How would you explain the required input format (e.g., the sample sheet) to me, and how will your pipeline validate that I haven't made a mistake?*
 
-The input file is a sample sheet CSV with six columns: sample_id, treatment (vehicle or drug label), timepoint, replicate, fastq_1, fastq_2. Simply fill in the metadata columns with the appropriate information, and write the filepaths to the paired reads generate from Illumina in the fastq columns. The pipeline will automatically validate you have set the file up correctly, and will not run if a particular column name or input format needs adjustment.
+The input file is a sample sheet CSV with six columns: sample, timepoint, treatment (vehicle or drug label), replicate, fastq_1, fastq_2. Simply fill in the metadata columns with the appropriate information, and write the filepaths to the paired reads generate from Illumina in the fastq columns. The pipeline will automatically validate you have set the file up correctly, and will not run if a particular column name or input format needs adjustment.
 
 *Suppose I come to you in a panic because Day 5 only yielded 2 viable replicates instead of 5, and one of the Day 13 samples failed QC mid-run and I have no DE genes.*
 
