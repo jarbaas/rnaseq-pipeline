@@ -139,4 +139,10 @@ matrix[sample_columns] = matrix[sample_columns].astype('int64')
 matrix.to_csv('gene_counts.tsv', sep='\t', index=False)
 PYTHON
     """
+
+stub:
+"""
+touch count_manifest.tsv
+touch gene_counts.tsv
+"""
 }
