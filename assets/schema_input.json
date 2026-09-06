@@ -3,6 +3,7 @@
     "type": "array",
     "items": {
         "type": "object",
+        "meta": ["sample", "timepoint", "treatment", "replicate", "strandedness"],
         "properties": {
             "sample": { 
                 "type": "string", 
@@ -22,6 +23,10 @@
                 "type": "integer", 
                 "minimum": 1 
             },
+            "strandedness": {
+                "type": "string",
+                "enum": ["unstranded", "forward", "reverse"]
+            },
             "fastq_1": { 
                 "type": "string", 
                 "format": "file-path",
@@ -33,7 +38,7 @@
                 "pattern": "\\.(fastq|fq)(\\.gz)?$"
             }
         },
-        "required": ["sample", "timepoint", "treatment", "replicate", "fastq_1", "fastq_2"],
+        "required": ["sample", "timepoint", "treatment", "replicate", "strandedness", "fastq_1", "fastq_2"],
         "additionalProperties": false
     }
 }

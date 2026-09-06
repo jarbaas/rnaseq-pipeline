@@ -19,16 +19,10 @@ workflow {
     def clinical_samplesheet = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
     
     ch_reads = Channel.fromList(clinical_samplesheet)
-        .map { sample, timepoint, treatment, replicate, fastq_1, fastq_2 ->
-            def sample_id = "${sample}_${treatment}_d${timepoint}_r${replicate}"
-            
-            def meta = [
-                id:         sample_id,
-                sample:     sample,
-                single_end: false,
-                timepoint:  timepoint,
-                treatment:  treatment,
-                replicate:  replicate
+        .map { meta, fastq_1, fastq_2 ->
+            def meta = meta + [
+                id: "${meta.sample}_${meta.treatment}_d${meta.timepoint}_r${meta.replicate}",
+                single_end: false
             ]
             
             return tuple(meta, [ file(fastq_1), file(fastq_2) ])
@@ -131,9 +125,12 @@ for row in manifest.itertuples(index=False):
     sample_counts = df.set_index('Geneid')[count_columns[0]].rename(row.sample_id)
     dataframes.append(sample_counts)
 
-matrix = pd.concat(dataframes, axis=1).reset_index()
+matrix = pd.concat(dataframes, axis=1)
 
-matrix = matrix.fillna(0)
+if matrix.isna().any().any():
+    raise ValueError("Gene index mismatch detected. Samples contain differing gene lists.")
+
+matrix = matrix.reset_index()
 sample_columns = [col for col in matrix.columns if col != 'Geneid']
 matrix[sample_columns] = matrix[sample_columns].astype('int64')
 matrix.to_csv('gene_counts.tsv', sep='\t', index=False)
