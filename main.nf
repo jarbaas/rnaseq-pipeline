@@ -19,10 +19,15 @@ workflow {
     def clinical_samplesheet = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
     
     ch_reads = Channel.fromList(clinical_samplesheet)
-        .map { meta, fastq_1, fastq_2 ->
-            meta = meta + [
-                id: "${meta.sample}_${meta.treatment}_d${meta.timepoint}_r${meta.replicate}",
-                single_end: false
+        .map { sample, timepoint, treatment, replicate, strandedness, fastq_1, fastq_2 ->
+            def meta = [
+                sample:       sample,
+                timepoint:    timepoint,
+                treatment:    treatment,
+                replicate:    replicate,
+                strandedness: strandedness,
+                id:           "${sample}_${treatment}_d${timepoint}_r${replicate}",
+                single_end:   false
             ]
             
             return tuple(meta, [ file(fastq_1), file(fastq_2) ])
