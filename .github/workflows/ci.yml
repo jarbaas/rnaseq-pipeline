@@ -41,7 +41,7 @@ jobs:
       - name: Execute Pipeline with -stub
         run: |
           nextflow run main.nf \
-            -profile standard \
+            -profile ci \
             -stub \
             --input test_data/samplesheet.csv \
             --fasta test_data/genome.fa \
