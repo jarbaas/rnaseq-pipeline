@@ -86,18 +86,19 @@ process GENERATE_COUNT_MATRIX {
     
     output:
     path 'gene_counts.tsv'
+    path 'coldata.tsv'
     path 'count_manifest.tsv'
     
     script:
     def manifest_rows = count_tuples.collect { item ->
         def meta = item[0]
         def count_file = item[1]
-        "${meta.id}\t${count_file}"
+        "${meta.id}\t${count_file.name}\t${meta.timepoint}\t${meta.treatment}\t${meta.replicate}"
     }.join('\n')
     
     """
 cat > count_manifest.tsv <<'EOF'
-sample_id\tcount_file
+sample_id\tcount_file\ttimepoint\ttreatment\treplicate
 ${manifest_rows}
 EOF
 
@@ -114,7 +115,6 @@ for filename in manifest['count_file']:
     if not Path(filename).is_file():
         raise FileNotFoundError(f'Expected staged featureCounts result was not found: {filename}')
 
-matrix = None
 metadata_columns = {'Geneid', 'Chr', 'Start', 'End', 'Strand', 'Length'}
 dataframes = []
 
@@ -134,6 +134,10 @@ matrix = matrix.reset_index()
 sample_columns = [col for col in matrix.columns if col != 'Geneid']
 matrix[sample_columns] = matrix[sample_columns].astype('int64')
 matrix.to_csv('gene_counts.tsv', sep='\t', index=False)
+
+coldata = manifest[['sample_id', 'timepoint', 'treatment', 'replicate']].copy()
+coldata.set_index('sample_id', inplace=True)
+coldata.to_csv('coldata.tsv', sep='\\t')
 PYTHON
     """
 
