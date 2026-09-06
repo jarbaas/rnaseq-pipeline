@@ -15,4 +15,5 @@ Homo_sapiens_assembly38.*
 assets/test_data
 *.out
 /results_yeast_test/
-
+test_data/
+results_test/

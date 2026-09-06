@@ -1,0 +1,50 @@
+name: Nextflow CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  stub-run:
+    name: Run Nextflow Stub Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Nextflow
+        uses: nf-core/setup-nextflow@v2
+        with:
+          version: 'latest-everything'
+
+      - name: Create Mock Test Inputs
+        run: |
+          mkdir -p test_data assets
+          touch test_data/genome.fa
+          touch test_data/genes.gtf
+          mkdir -p test_data/star_index
+          touch test_data/sample1_R1.fastq.gz
+          touch test_data/sample1_R2.fastq.gz
+          cat > test_data/samplesheet.csv <<'EOF'
+          sample,timepoint,treatment,replicate,strandedness,fastq_1,fastq_2
+          sampleA,1,ctrl,1,reverse,test_data/sample1_R1.fastq.gz,test_data/sample1_R2.fastq.gz
+          EOF
+
+      - name: Execute Pipeline with -stub
+        run: |
+          nextflow run main.nf \
+            -profile standard \
+            -stub \
+            --input test_data/samplesheet.csv \
+            --fasta test_data/genome.fa \
+            --gtf test_data/genes.gtf \
+            --star_index test_data/star_index \
+            --outdir results_test

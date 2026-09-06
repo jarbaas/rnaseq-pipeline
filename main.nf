@@ -142,8 +142,24 @@ PYTHON
     """
 
 stub:
-"""
-touch count_manifest.tsv
-touch gene_counts.tsv
-"""
+    """
+    cat > count_manifest.tsv <<'EOF'
+sample_id\tcount_file\ttimepoint\ttreatment\treplicate
+sampleA_ctrl_d1_r1\tsampleA.txt\t1\tctrl\t1
+sampleB_trt_d1_r1\tsampleB.txt\t1\ttrt\t1
+EOF
+
+    cat > gene_counts.tsv <<'EOF'
+Geneid\tsampleA_ctrl_d1_r1\tsampleB_trt_d1_r1
+ENSG00000000003\t245\t312
+ENSG00000000005\t0\t5
+ENSG00000000419\t1024\t980
+EOF
+
+    cat > coldata.tsv <<'EOF'
+sample_id\ttimepoint\ttreatment\treplicate
+sampleA_ctrl_d1_r1\t1\tctrl\t1
+sampleB_trt_d1_r1\t1\ttrt\t1
+EOF
+    """
 }
