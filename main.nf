@@ -20,7 +20,7 @@ workflow {
     
     ch_reads = Channel.fromList(clinical_samplesheet)
         .map { meta, fastq_1, fastq_2 ->
-            def meta = meta + [
+            meta = meta + [
                 id: "${meta.sample}_${meta.treatment}_d${meta.timepoint}_r${meta.replicate}",
                 single_end: false
             ]
