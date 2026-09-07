@@ -17,7 +17,7 @@
             "treatment": { 
                 "type": "string",
                 "minLength": 1,
-                "pattern": "^(?!\\s*$).+"
+                "pattern": "^[a-zA-Z0-9_\\-]+$"
             },
             "replicate": { 
                 "type": "integer", 
