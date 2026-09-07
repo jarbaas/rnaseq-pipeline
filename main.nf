@@ -64,8 +64,9 @@ workflow {
             tuple(count_tuples, count_files)
         }
     
+    ch_expected_meta = ch_reads.map { meta, reads -> meta }.collect()
 
-    GENERATE_COUNT_MATRIX(ch_count_matrix_input)
+    GENERATE_COUNT_MATRIX(ch_count_matrix_input, ch_expected_meta)
     
     ch_multiqc_files = Channel.empty()
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC_RAW.out.zip.map { meta, logs -> logs })
@@ -88,17 +89,23 @@ process GENERATE_COUNT_MATRIX {
     
     input:
     tuple val(count_tuples), path(count_files)
+    val expected_meta
     
     output:
     path 'gene_counts.tsv'
     path 'coldata.tsv'
     path 'count_manifest.tsv'
+    path 'dropout_report.tsv'
     
     script:
     def manifest_rows = count_tuples.collect { item ->
         def meta = item[0]
         def count_file = item[1]
         "${meta.id}\t${count_file.name}\t${meta.timepoint}\t${meta.treatment}\t${meta.replicate}"
+    }.join('\n')
+
+    def expected_rows = expected_meta.collect { meta ->
+        "${meta.id}\t${meta.sample}\t${meta.timepoint}\t${meta.treatment}\t${meta.replicate}"
     }.join('\n')
     
     """
@@ -107,11 +114,17 @@ sample_id\tcount_file\ttimepoint\ttreatment\treplicate
 ${manifest_rows}
 EOF
 
+cat > expected_manifest.tsv <<'EOF'
+sample_id\tsample\ttimepoint\ttreatment\treplicate
+${expected_rows}
+EOF
+
 python3 - <<'PYTHON'
 import pandas as pd
 from pathlib import Path
 
-manifest = pd.read_csv('count_manifest.tsv', sep='\\t')
+manifest = pd.read_csv('count_manifest.tsv', sep='\t')
+expected_df = pd.read_csv('expected_manifest.tsv', sep='\t')
 
 if manifest.empty:
     raise SystemExit('No successful featureCounts outputs were available to merge.')
@@ -120,13 +133,19 @@ for filename in manifest['count_file']:
     if not Path(filename).is_file():
         raise FileNotFoundError(f'Expected staged featureCounts result was not found: {filename}')
 
+survived_ids = set(manifest['sample_id'])
+expected_df['status'] = expected_df['sample_id'].apply(
+    lambda sid: 'SURVIVED' if sid in survived_ids else 'DROPOUT'
+)
+
+expected_df.to_csv('dropout_report.tsv', sep='\t', index=False)
+
 metadata_columns = {'Geneid', 'Chr', 'Start', 'End', 'Strand', 'Length'}
 dataframes = []
 
 for row in manifest.itertuples(index=False):
     df = pd.read_csv(row.count_file, sep='\t', comment='#')
     count_columns = [col for col in df.columns if col not in metadata_columns]
-    
     sample_counts = df.set_index('Geneid')[count_columns[0]].rename(row.sample_id)
     dataframes.append(sample_counts)
 
@@ -142,7 +161,7 @@ matrix.to_csv('gene_counts.tsv', sep='\t', index=False)
 
 coldata = manifest[['sample_id', 'timepoint', 'treatment', 'replicate']].copy()
 coldata.set_index('sample_id', inplace=True)
-coldata.to_csv('coldata.tsv', sep='\\t')
+coldata.to_csv('coldata.tsv', sep='\t')
 PYTHON
     """
 
@@ -152,6 +171,12 @@ stub:
 sample_id\tcount_file\ttimepoint\ttreatment\treplicate
 sampleA_ctrl_d1_r1\tsampleA.txt\t1\tctrl\t1
 sampleB_trt_d1_r1\tsampleB.txt\t1\ttrt\t1
+EOF
+
+    cat > dropout_report.tsv <<'EOF'
+sample_id\tsample\ttimepoint\ttreatment\treplicate\tstatus
+sampleA_ctrl_d1_r1\tsampleA\t1\tctrl\t1\tSURVIVED
+sampleB_trt_d1_r1\tsampleB\t1\ttrt\t1\tSURVIVED
 EOF
 
     cat > gene_counts.tsv <<'EOF'

@@ -25,6 +25,7 @@ nextflow_pipeline {
             assert path("${params.outdir}/counts/gene_counts.tsv").exists()
             assert path("${params.outdir}/counts/coldata.tsv").exists()
             assert path("${params.outdir}/counts/count_manifest.tsv").exists()
+            assert path("${params.outdir}/counts/dropout_report.tsv").exists()
         }
 
     }
