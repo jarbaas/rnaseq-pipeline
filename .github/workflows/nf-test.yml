@@ -20,8 +20,6 @@ jobs:
 
       - name: Setup nf-test
         uses: nf-core/setup-nf-test@v2
-        with:
-          version: 'latest'
 
       - name: Run pipeline tests
         run: nf-test test tests/main.nf.test
