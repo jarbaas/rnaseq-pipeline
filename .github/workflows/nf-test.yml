@@ -1,0 +1,27 @@
+name: nf-test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Setup nf-test
+        uses: nf-core/setup-nf-test@v2
+        with:
+          version: 'latest'
+
+      - name: Run pipeline tests
+        run: nf-test test tests/main.nf.test

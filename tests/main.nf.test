@@ -1,0 +1,32 @@
+nextflow_pipeline {
+
+    name "Test Workflow main.nf"
+    script "main.nf"
+
+    // Nextflow execution flags must go here (outside the test block)
+    options "-profile ci -stub"
+
+    test("Should run without failures") {
+
+        when {
+            params {
+                input      = "${projectDir}/test_data/samplesheet.csv"
+                fasta      = "${projectDir}/test_data/genome.fa"
+                gtf        = "${projectDir}/test_data/genes.gtf"
+                star_index = "${projectDir}/test_data/star_index"
+                
+                outdir     = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            assert path("${params.outdir}/counts/gene_counts.tsv").exists()
+            assert path("${params.outdir}/counts/coldata.tsv").exists()
+            assert path("${params.outdir}/counts/count_manifest.tsv").exists()
+        }
+
+    }
+
+}
