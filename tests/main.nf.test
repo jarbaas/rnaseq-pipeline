@@ -2,32 +2,97 @@ nextflow_pipeline {
 
     name "Test Workflow main.nf"
     script "main.nf"
-
-    // Nextflow execution flags must go here (outside the test block)
     options "-profile ci -stub"
 
-    test("Should run without failures") {
-
+    test("Valid input produces a non-empty, internally consistent matrix") {
         when {
             params {
-                input      = "${projectDir}/test_data/samplesheet.csv"
+                input      = "${projectDir}/tests/fixtures/samplesheet_with_failure.csv"
                 fasta      = "${projectDir}/test_data/genome.fa"
                 gtf        = "${projectDir}/test_data/genes.gtf"
                 star_index = "${projectDir}/test_data/star_index"
-                
                 outdir     = "$outputDir"
             }
         }
-
         then {
             assert workflow.success
 
-            assert path("${params.outdir}/counts/gene_counts.tsv").exists()
-            assert path("${params.outdir}/counts/coldata.tsv").exists()
-            assert path("${params.outdir}/counts/count_manifest.tsv").exists()
-            assert path("${params.outdir}/counts/dropout_report.tsv").exists()
-        }
+            def counts = path("${params.outdir}/counts/gene_counts.tsv").text.readLines()
+            def coldata = path("${params.outdir}/counts/coldata.tsv").text.readLines()
+            def manifest = path("${params.outdir}/counts/count_manifest.tsv").text.readLines()
+            def dropout = path("${params.outdir}/counts/dropout_report.tsv").text.readLines()
 
+            assert counts.size() > 1
+            assert coldata.size() == 3       // header + 2 samples
+            assert manifest.size() == 3
+            assert dropout.size() == 3
+
+            def countHeader = counts[0].split('\t')
+            assert countHeader[0] == 'Geneid'
+            assert countHeader.toList().toSet().size() == countHeader.size()
+
+            def sampleIds = coldata[1..-1]*.split('\t').collect { it[0] }
+            assert sampleIds.toList().toSet().size() == sampleIds.size()
+            assert sampleIds.every { countHeader.contains(it) }
+        }
     }
 
+    test("Rejects invalid treatment metadata") {
+        when {
+            params {
+                input      = "${projectDir}/tests/fixtures/invalid_treatment.csv"
+                fasta      = "${projectDir}/test_data/genome.fa"
+                gtf        = "${projectDir}/test_data/genes.gtf"
+                star_index = "${projectDir}/test_data/star_index"
+                outdir     = "$outputDir"
+            }
+        }
+        then {
+            assert !workflow.success
+            assert workflow.stderr.any { it.contains("does not match regular expression") }
+        }
+    }
+
+    test("A failed sample is reported and excluded") {
+        config "tests/fixtures/inject_failure.config"
+        when {
+            params {
+                input      = "${projectDir}/tests/fixtures/samplesheet_with_failure.csv"
+                fasta      = "${projectDir}/test_data/genome.fa"
+                gtf        = "${projectDir}/test_data/genes.gtf"
+                star_index = "${projectDir}/test_data/star_index"
+                outdir     = "$outputDir"
+            }
+        }
+        then {
+            assert workflow.success
+
+            def dropout = path("${params.outdir}/counts/dropout_report.tsv").text
+            assert dropout.contains("sample_failed_trt_d1_r1")
+            assert dropout.contains("DROPOUT")
+
+            def counts = path("${params.outdir}/counts/gene_counts.tsv").text
+            def coldata = path("${params.outdir}/counts/coldata.tsv").text
+
+            assert !counts.contains("sample_failed_trt_d1_r1")
+            assert !coldata.contains("sample_failed_trt_d1_r1")
+        }
+    }
+
+    test("Gracefully terminates if all samples fail") {
+            config "tests/fixtures/inject_total_failure.config"
+            when {
+                params {
+                    input      = "${projectDir}/tests/fixtures/samplesheet_with_failure.csv"
+                    fasta      = "${projectDir}/test_data/genome.fa"
+                    gtf        = "${projectDir}/test_data/genes.gtf"
+                    star_index = "${projectDir}/test_data/star_index"
+                    outdir     = "$outputDir"
+                }
+            }
+            then {
+                assert !workflow.success
+                assert workflow.stdout.any { it.contains("No successful featureCounts outputs were available to merge") }
+            }
+        }
 }

@@ -1,0 +1,3 @@
+sample,timepoint,treatment,replicate,strandedness,fastq_1,fastq_2
+good_sample,1,ctrl,1,reverse,test_data/sample1_R1.fastq.gz,test_data/sample1_R2.fastq.gz
+bad_sample,1,ctrl,1,reverse,test_data/bad_R1.fastq.gz,test_data/bad_R2.fastq.gz

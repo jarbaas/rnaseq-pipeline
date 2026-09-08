@@ -58,6 +58,7 @@ workflow {
     SUBREAD_FEATURECOUNTS(ch_featurecounts_input)
 
     ch_count_matrix_input = SUBREAD_FEATURECOUNTS.out.counts
+        .ifEmpty { error "No successful featureCounts outputs were available to merge." }
         .collect(flat: false)
         .map { count_tuples ->
             def count_files = count_tuples.collect { item -> item[1] }
@@ -126,13 +127,6 @@ from pathlib import Path
 manifest = pd.read_csv('count_manifest.tsv', sep='\t')
 expected_df = pd.read_csv('expected_manifest.tsv', sep='\t')
 
-if manifest.empty:
-    raise SystemExit('No successful featureCounts outputs were available to merge.')
-
-for filename in manifest['count_file']:
-    if not Path(filename).is_file():
-        raise FileNotFoundError(f'Expected staged featureCounts result was not found: {filename}')
-
 survived_ids = set(manifest['sample_id'])
 expected_df['status'] = expected_df['sample_id'].apply(
     lambda sid: 'SURVIVED' if sid in survived_ids else 'DROPOUT'
@@ -166,30 +160,56 @@ PYTHON
     """
 
 stub:
+    def manifest_rows = count_tuples.collect { item ->
+        def meta = item[0]
+        def count_file = item[1]
+        "${meta.id}\t${count_file.name}\t${meta.timepoint}\t${meta.treatment}\t${meta.replicate}"
+    }.join('\n')
+
+    def expected_rows = expected_meta.collect { meta ->
+        "${meta.id}\t${meta.sample}\t${meta.timepoint}\t${meta.treatment}\t${meta.replicate}"
+    }.join('\n')
+    
+    def survived_ids = count_tuples.collect { it[0].id }
+    def gene_counts_header = "Geneid\t" + survived_ids.join('\t')
+    def gene_counts_row = "ENSG00000000003\t" + count_tuples.collect { "100" }.join('\t')
+    
+    def coldata_rows = count_tuples.collect { item ->
+        "${item[0].id}\t${item[0].timepoint}\t${item[0].treatment}\t${item[0].replicate}"
+    }.join('\n')
+
     """
-    cat > count_manifest.tsv <<'EOF'
+cat > count_manifest.tsv <<'EOF'
 sample_id\tcount_file\ttimepoint\ttreatment\treplicate
-sampleA_ctrl_d1_r1\tsampleA.txt\t1\tctrl\t1
-sampleB_trt_d1_r1\tsampleB.txt\t1\ttrt\t1
+${manifest_rows}
 EOF
 
-    cat > dropout_report.tsv <<'EOF'
-sample_id\tsample\ttimepoint\ttreatment\treplicate\tstatus
-sampleA_ctrl_d1_r1\tsampleA\t1\tctrl\t1\tSURVIVED
-sampleB_trt_d1_r1\tsampleB\t1\ttrt\t1\tSURVIVED
+cat > expected_manifest.tsv <<'EOF'
+sample_id\tsample\ttimepoint\ttreatment\treplicate
+${expected_rows}
 EOF
 
-    cat > gene_counts.tsv <<'EOF'
-Geneid\tsampleA_ctrl_d1_r1\tsampleB_trt_d1_r1
-ENSG00000000003\t245\t312
-ENSG00000000005\t0\t5
-ENSG00000000419\t1024\t980
+python3 - <<'PYTHON'
+import pandas as pd
+import sys
+
+manifest = pd.read_csv('count_manifest.tsv', sep='\t')
+
+expected_df = pd.read_csv('expected_manifest.tsv', sep='\t')
+survived_ids = set(manifest['sample_id'])
+
+expected_df['status'] = expected_df['sample_id'].apply(lambda sid: 'SURVIVED' if sid in survived_ids else 'DROPOUT')
+expected_df.to_csv('dropout_report.tsv', sep='\t', index=False)
+PYTHON
+
+cat > gene_counts.tsv <<'EOF'
+${gene_counts_header}
+${gene_counts_row}
 EOF
 
-    cat > coldata.tsv <<'EOF'
+cat > coldata.tsv <<'EOF'
 sample_id\ttimepoint\ttreatment\treplicate
-sampleA_ctrl_d1_r1\t1\tctrl\t1
-sampleB_trt_d1_r1\t1\ttrt\t1
+${coldata_rows}
 EOF
     """
 }

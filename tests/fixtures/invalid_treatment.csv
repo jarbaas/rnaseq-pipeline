@@ -1,0 +1,2 @@
+sample,timepoint,treatment,replicate,strandedness,fastq_1,fastq_2
+sample1,1,drug;touch /tmp/pwned;,1,reverse,test_data/sample1_R1.fastq.gz,test_data/sample1_R2.fastq.gz
