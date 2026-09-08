@@ -1,0 +1,59 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/YOUR_REPO/nextflow_schema.json",
+    "title": "RNA-Seq Pipeline Parameters",
+    "type": "object",
+    "properties": {
+        "input": {
+            "type": "string",
+            "format": "file-path",
+            "description": "Path to comma-separated file containing information about the samples in the experiment."
+        },
+        "fasta": {
+            "type": "string",
+            "format": "file-path",
+            "description": "Path to the genome FASTA reference file."
+        },
+        "star_index": {
+            "type": "string",
+            "format": "directory-path",
+            "description": "Path to the STAR index directory."
+        },
+        "gtf": {
+            "type": "string",
+            "format": "file-path",
+            "description": "Path to the genome annotation GTF file."
+        },
+        "outdir": {
+            "type": "string",
+            "format": "directory-path",
+            "description": "The output directory where the results will be saved.",
+            "default": "./results"
+        },
+        "sjdb_overhang": {
+            "type": "integer",
+            "description": "Length of the genomic sequence around the annotated junction to be used in constructing the splice junctions database.",
+            "default": 149
+        },
+        "max_cpus": {
+            "type": "integer",
+            "description": "Maximum number of CPUs that can be requested for any single job.",
+            "default": 16
+        },
+        "max_memory": {
+            "type": "string",
+            "description": "Maximum amount of memory that can be requested for any single job.",
+            "default": "256.GB"
+        },
+        "max_time": {
+            "type": "string",
+            "description": "Maximum wall-clock time that can be requested for any single job.",
+            "default": "240.h"
+        },
+        "help": {
+            "type": "boolean",
+            "description": "Display this help text."
+        }
+    },
+    "required": ["input", "fasta", "star_index", "gtf"]
+}

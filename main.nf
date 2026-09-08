@@ -1,4 +1,4 @@
-include { samplesheetToList }           from 'plugin/nf-schema'
+include { samplesheetToList; validateParameters; paramsHelp; paramsSummaryLog }           from 'plugin/nf-schema'
 include { FASTQC as FASTQC_RAW }        from './modules/nf-core/fastqc/main'
 include { FASTQC as FASTQC_TRIMMED }    from './modules/nf-core/fastqc/main'
 include { FASTP }                       from './modules/nf-core/fastp/main'
@@ -9,12 +9,16 @@ include { MULTIQC }                     from './modules/nf-core/multiqc/main'
 
 workflow {
     if (!workflow.profile) { 
-        exit 1, "ERROR: Please specify an execution profile (-profile standard or -profile portable)." 
+        error "ERROR: Please specify an execution profile (-profile standard or -profile portable)." 
     }
-    if (!params.input) { exit 1, "ERROR: --input parameter is missing." }
-    if (!params.fasta || !params.star_index || !params.gtf) { 
-    exit 1, "ERROR: --fasta, --star_index, and --gtf are required." 
+
+    if (params.help) {
+        log.info paramsHelp("nextflow run main.nf -profile portable --input samplesheet.csv --fasta genome.fa ...")
+        exit 0
     }
+
+    validateParameters()
+    log.info paramsSummaryLog(workflow)
 
     def clinical_samplesheet = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
     
