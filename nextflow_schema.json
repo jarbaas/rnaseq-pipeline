@@ -7,21 +7,25 @@
     "input": {
       "type": "string",
       "format": "file-path",
+      "exists": true,
       "description": "Path to comma-separated file containing information about the samples in the experiment."
     },
     "fasta": {
       "type": "string",
       "format": "file-path",
+      "exists": true, 
       "description": "Path to the genome FASTA reference file."
     },
     "star_index": {
       "type": "string",
       "format": "directory-path",
+      "exists": true,
       "description": "Path to the STAR index directory."
     },
     "gtf": {
       "type": "string",
       "format": "file-path",
+      "exists": true,
       "description": "Path to the genome annotation GTF file."
     },
     "outdir": {
