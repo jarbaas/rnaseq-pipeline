@@ -3,39 +3,43 @@
     "type": "array",
     "items": {
         "type": "object",
-        "meta": ["sample", "timepoint", "treatment", "replicate", "strandedness"],
         "properties": {
             "sample": { 
                 "type": "string", 
                 "pattern": "^[a-zA-Z0-9_\\-]+$",
-                "minLength": 1
+                "minLength": 1,
+                "meta": ["sample"]
             },
             "timepoint": { 
                 "type": "integer", 
-                "minimum": 0
+                "minimum": 0,
+                "meta": ["timepoint"]
             },
             "treatment": { 
                 "type": "string",
                 "minLength": 1,
-                "pattern": "^[a-zA-Z0-9_\\-]+$"
+                "pattern": "^[a-zA-Z0-9_\\-]+$",
+                "meta": ["treatment"]
             },
             "replicate": { 
                 "type": "integer", 
-                "minimum": 1 
+                "minimum": 1,
+                "meta": ["replicate"] 
             },
             "strandedness": {
                 "type": "string",
-                "enum": ["unstranded", "forward", "reverse"]
+                "enum": ["unstranded", "forward", "reverse"],
+                "meta": ["strandedness"]
             },
             "fastq_1": { 
                 "type": "string", 
                 "format": "file-path",
-                "pattern": "\\.(fastq|fq)(\\.gz)?$"
+                "pattern": "^[A-Za-z0-9_./-]+\\.(fastq|fq)(\\.gz)?$"
             },
             "fastq_2": { 
                 "type": "string", 
                 "format": "file-path",
-                "pattern": "\\.(fastq|fq)(\\.gz)?$"
+                "pattern": "^[A-Za-z0-9_./-]+\\.(fastq|fq)(\\.gz)?$"
             }
         },
         "required": ["sample", "timepoint", "treatment", "replicate", "strandedness", "fastq_1", "fastq_2"],

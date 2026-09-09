@@ -4,7 +4,7 @@ nextflow_pipeline {
     script "main.nf"
     options "-profile ci -stub"
 
-    test("Valid input produces a non-empty, internally consistent matrix") {
+    test("Produces a valid matrix from a valid samplesheet") {
         when {
             params {
                 input      = "${projectDir}/tests/fixtures/samplesheet_with_failure.csv"

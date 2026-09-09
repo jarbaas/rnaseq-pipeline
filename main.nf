@@ -34,7 +34,7 @@ workflow {
                 single_end:   false
             ]
             
-            return tuple(meta, [ file(fastq_1), file(fastq_2) ])
+            return tuple(meta, [ file(fastq_1, checkIfExists: true), file(fastq_2, checkIfExists: true) ])
         }
 
     ch_fasta = Channel.value(tuple([id: 'genome'], file(params.fasta, checkIfExists: true)))
@@ -63,13 +63,15 @@ workflow {
 
     ch_count_matrix_input = SUBREAD_FEATURECOUNTS.out.counts
         .ifEmpty { error "No successful featureCounts outputs were available to merge." }
-        .collect(flat: false)
+        .toSortedList { a, b -> a[0].id <=> b[0].id }
         .map { count_tuples ->
             def count_files = count_tuples.collect { item -> item[1] }
             tuple(count_tuples, count_files)
         }
     
-    ch_expected_meta = ch_reads.map { meta, reads -> meta }.collect()
+    ch_expected_meta = ch_reads
+        .map { meta, reads -> meta }
+        .toSortedList { a, b -> a.id <=> b.id }
 
     GENERATE_COUNT_MATRIX(ch_count_matrix_input, ch_expected_meta)
     
