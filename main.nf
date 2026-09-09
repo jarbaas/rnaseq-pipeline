@@ -23,18 +23,13 @@ workflow {
     def clinical_samplesheet = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
     
     ch_reads = Channel.fromList(clinical_samplesheet)
-        .map { sample, timepoint, treatment, replicate, strandedness, fastq_1, fastq_2 ->
-            def meta = [
-                sample:       sample,
-                timepoint:    timepoint,
-                treatment:    treatment,
-                replicate:    replicate,
-                strandedness: strandedness,
-                id:           "${sample}_${treatment}_d${timepoint}_r${replicate}",
-                single_end:   false
+        .map { meta, fastq_1, fastq_2 ->
+            def updated_meta = meta + [
+                id: "${meta.sample}_${meta.treatment}_d${meta.timepoint}_r${meta.replicate}",
+                single_end: false
             ]
             
-            return tuple(meta, [ file(fastq_1, checkIfExists: true), file(fastq_2, checkIfExists: true) ])
+            return tuple(updated_meta, [ file(fastq_1, checkIfExists: true), file(fastq_2, checkIfExists: true) ])
         }
 
     ch_fasta = Channel.value(tuple([id: 'genome'], file(params.fasta, checkIfExists: true)))
@@ -99,10 +94,10 @@ process GENERATE_COUNT_MATRIX {
     val expected_meta
     
     output:
-    path 'gene_counts.tsv'
-    path 'coldata.tsv'
-    path 'count_manifest.tsv'
-    path 'dropout_report.tsv'
+    path 'gene_counts.tsv', emit: gene_counts
+    path 'coldata.tsv', emit: coldata
+    path 'count_manifest.tsv', emit: count_manifest
+    path 'dropout_report.tsv', emit:dropout_report
     
     script:
     def manifest_rows = count_tuples.collect { item ->

@@ -1,0 +1,58 @@
+nextflow_process {
+    name "Test Process GENERATE_COUNT_MATRIX"
+    script "main.nf"
+    process "GENERATE_COUNT_MATRIX"
+
+    test("Aggregates TSVs, executes Pandas natively, and reports dropouts") {
+        when {
+            process {
+                """
+                def meta1 = [id: 'sample1', timepoint: 1, treatment: 'ctrl', replicate: 1]
+                def meta2 = [id: 'sample2', timepoint: 1, treatment: 'trt', replicate: 1]
+                def meta3 = [id: 'sample_failed', timepoint: 1, treatment: 'trt', replicate: 2]
+                
+                def file1 = file("\${projectDir}/test_data/sample1.featureCounts.tsv")
+                def file2 = file("\${projectDir}/test_data/sample2.featureCounts.tsv")
+                
+                input[0] = [ [ [meta1, file1], [meta2, file2] ], [file1, file2] ]
+                input[1] = [ meta1, meta2, meta3 ]
+                """
+            }
+        }
+        then {
+            assert process.success
+            
+            def matrix = path(process.out.gene_counts.get(0)).text
+            assert matrix.contains("Geneid\tsample1\tsample2")
+            assert matrix.contains("GENE1")
+            
+            def dropout = path(process.out.dropout_report.get(0)).text
+            assert dropout.contains("sample_failed")
+            assert dropout.contains("DROPOUT")
+        }
+    }
+
+    test("Crashes and throws ValueError when gene indices mismatch") {
+        when {
+            process {
+                """
+                def meta1 = [id: 'sample1', timepoint: 1, treatment: 'ctrl', replicate: 1]
+                def meta2 = [id: 'sample2', timepoint: 1, treatment: 'trt', replicate: 1]
+                
+                def file1 = file("\${projectDir}/test_data/sample1.featureCounts.tsv")
+                def bad_file = file("\${projectDir}/test_data/mismatched.featureCounts.tsv")
+                
+                input[0] = [ [ [meta1, file1], [meta2, bad_file] ], [file1, bad_file] ]
+                input[1] = [ meta1, meta2 ]
+                """
+            }
+        }
+        then {
+            assert !process.success
+            assert process.exitStatus == 1
+            
+            assert process.stderr.any { it.contains("Gene index mismatch detected") } || 
+                   process.stdout.any { it.contains("Gene index mismatch detected") }
+        }
+    }
+}
