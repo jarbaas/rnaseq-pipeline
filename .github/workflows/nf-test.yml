@@ -15,13 +15,13 @@ jobs:
       - name: Install Java
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          distribution: "temurin"
+          java-version: "21"
 
       - name: Install Nextflow
         uses: nf-core/setup-nextflow@v3
         with:
-          version: 'latest-everything'
+          version: "latest-everything"
 
       - name: Setup nf-test
         uses: nf-core/setup-nf-test@v2
