@@ -8,7 +8,8 @@ nextflow_pipeline {
         setup {
             def sheet = new File("${workDir}/samplesheet.csv")
             sheet.text = """sample,timepoint,treatment,replicate,strandedness,fastq_1,fastq_2
-sample_good,1,ctrl,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectDir}/test_data/reads_2.fastq.gz"""
+sample_good,1,ctrl,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectDir}/test_data/reads_2.fastq.gz
+sample_good2,1,ctrl,2,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectDir}/test_data/reads_2.fastq.gz"""
         }
         when {
             params {
@@ -28,9 +29,9 @@ sample_good,1,ctrl,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectD
             def dropout = path("${params.outdir}/counts/dropout_report.tsv").text.readLines()
 
             assert counts.size() > 1
-            assert coldata.size() == 2       // header + 1 sample
-            assert manifest.size() == 2
-            assert dropout.size() == 2
+            assert coldata.size() == 3
+            assert manifest.size() == 3
+            assert dropout.size() == 3
 
             def countHeader = counts[0].split('\t')
             assert countHeader[0] == 'Geneid'
@@ -39,6 +40,11 @@ sample_good,1,ctrl,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectD
             def sampleIds = coldata[1..-1]*.split('\t').collect { it[0] }
             assert sampleIds.toList().toSet().size() == sampleIds.size()
             assert sampleIds.every { countHeader.contains(it) }
+            assert sampleIds.toSet() == ['sample_good_ctrl_d1_r1', 'sample_good2_ctrl_d1_r2'] as Set
+
+            def dropoutRows = dropout[1..-1]*.split('\t')
+            assert dropoutRows.every { it[5] == 'SURVIVED' }
+            assert dropoutRows*.first().toSet() == ['sample_good_ctrl_d1_r1','sample_good2_ctrl_d1_r2'] as Set
         }
     }
 
@@ -83,15 +89,26 @@ sample_failed,1,trt,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${project
         then {
             assert workflow.success
 
-            def dropout = path("${params.outdir}/counts/dropout_report.tsv").text
-            assert dropout.contains("sample_failed_trt_d1_r1")
-            assert dropout.contains("DROPOUT")
+            def dropout = path("${params.outdir}/counts/dropout_report.tsv").text.readLines()
+            def dropoutRows = dropout[1..-1]*.split('\t')
+
+            def failedRow = dropoutRows.find {it[0] == 'sample_failed_trt_d1_r1' }
+            def goodRow = dropoutRows.find {it[0] == 'sample_good_ctrl_d1_r1' }
+
+            assert failedRow
+            assert failedRow[5] == 'DROPOUT'
+
+            assert goodRow
+            assert goodRow[5] == 'SURVIVED'
 
             def counts = path("${params.outdir}/counts/gene_counts.tsv").text
             def coldata = path("${params.outdir}/counts/coldata.tsv").text
 
-            assert !counts.contains("sample_failed_trt_d1_r1")
-            assert !coldata.contains("sample_failed_trt_d1_r1")
+            assert !counts.contains('sample_failed_trt_d1_r1')
+            assert !coldata.contains('sample_failed_trt_d1_r1')
+
+            assert counts.contains('sample_good_ctrl_d1_r1')
+            assert coldata.contains('sample_good_ctrl_d1_r1')
         }
     }
 
