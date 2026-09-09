@@ -22,6 +22,19 @@ workflow {
 
     def clinical_samplesheet = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
     
+    def sample_ids = clinical_samplesheet.collect { meta, fastq_1, fastq_2 ->
+        "${meta.sample}_${meta.treatment}_d${meta.timepoint}_r${meta.replicate}"
+    }
+
+    def duplicate_ids = sample_ids
+        .groupBy { it }
+        .findAll { id, rows -> rows.size() > 1 }
+        .keySet()
+
+    if (duplicate_ids) {
+        error "Duplicate sample IDs detected: ${duplicate_ids.join(', ')}"
+    }
+
     ch_reads = Channel.fromList(clinical_samplesheet)
         .map { meta, fastq_1, fastq_2 ->
             def updated_meta = meta + [
