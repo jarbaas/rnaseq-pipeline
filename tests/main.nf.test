@@ -5,9 +5,14 @@ nextflow_pipeline {
     options "-profile ci -stub"
 
     test("Produces a valid matrix from a valid samplesheet") {
+        setup {
+            def sheet = new File("${workDir}/samplesheet.csv")
+            sheet.text = """sample,timepoint,treatment,replicate,strandedness,fastq_1,fastq_2
+sample_good,1,ctrl,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectDir}/test_data/reads_2.fastq.gz"""
+        }
         when {
             params {
-                input      = "${projectDir}/tests/fixtures/samplesheet_with_failure.csv"
+                input      = "${workDir}/samplesheet.csv"
                 fasta      = "${projectDir}/test_data/genome.fa"
                 gtf        = "${projectDir}/test_data/genes.gtf"
                 star_index = "${projectDir}/test_data/star_index"
@@ -23,9 +28,9 @@ nextflow_pipeline {
             def dropout = path("${params.outdir}/counts/dropout_report.tsv").text.readLines()
 
             assert counts.size() > 1
-            assert coldata.size() == 3       // header + 2 samples
-            assert manifest.size() == 3
-            assert dropout.size() == 3
+            assert coldata.size() == 2       // header + 1 sample
+            assert manifest.size() == 2
+            assert dropout.size() == 2
 
             def countHeader = counts[0].split('\t')
             assert countHeader[0] == 'Geneid'
@@ -38,9 +43,14 @@ nextflow_pipeline {
     }
 
     test("Rejects invalid treatment metadata") {
+        setup {
+            def sheet = new File("${workDir}/samplesheet.csv")
+            sheet.text = """sample,timepoint,treatment,replicate,strandedness,fastq_1,fastq_2
+sample1,1,drug;touch /tmp/pwned;,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectDir}/test_data/reads_2.fastq.gz"""
+        }
         when {
             params {
-                input      = "${projectDir}/tests/fixtures/invalid_treatment.csv"
+                input      = "${workDir}/samplesheet.csv"
                 fasta      = "${projectDir}/test_data/genome.fa"
                 gtf        = "${projectDir}/test_data/genes.gtf"
                 star_index = "${projectDir}/test_data/star_index"
@@ -55,9 +65,15 @@ nextflow_pipeline {
 
     test("A failed sample is reported and excluded") {
         config "tests/fixtures/inject_failure.config"
+        setup {
+            def sheet = new File("${workDir}/samplesheet.csv")
+            sheet.text = """sample,timepoint,treatment,replicate,strandedness,fastq_1,fastq_2
+sample_good,1,ctrl,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectDir}/test_data/reads_2.fastq.gz
+sample_failed,1,trt,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectDir}/test_data/reads_2.fastq.gz"""
+        }
         when {
             params {
-                input      = "${projectDir}/tests/fixtures/samplesheet_with_failure.csv"
+                input      = "${workDir}/samplesheet.csv"
                 fasta      = "${projectDir}/test_data/genome.fa"
                 gtf        = "${projectDir}/test_data/genes.gtf"
                 star_index = "${projectDir}/test_data/star_index"
@@ -80,19 +96,25 @@ nextflow_pipeline {
     }
 
     test("Gracefully terminates if all samples fail") {
-            config "tests/fixtures/inject_total_failure.config"
-            when {
-                params {
-                    input      = "${projectDir}/tests/fixtures/samplesheet_with_failure.csv"
-                    fasta      = "${projectDir}/test_data/genome.fa"
-                    gtf        = "${projectDir}/test_data/genes.gtf"
-                    star_index = "${projectDir}/test_data/star_index"
-                    outdir     = "$outputDir"
-                }
-            }
-            then {
-                assert !workflow.success
-                assert workflow.stdout.any { it.contains("No successful featureCounts outputs were available to merge") }
+        config "tests/fixtures/inject_total_failure.config"
+        setup {
+            def sheet = new File("${workDir}/samplesheet.csv")
+            sheet.text = """sample,timepoint,treatment,replicate,strandedness,fastq_1,fastq_2
+sample_failed1,1,trt,1,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectDir}/test_data/reads_2.fastq.gz
+sample_failed2,1,trt,2,reverse,${projectDir}/test_data/reads_1.fastq.gz,${projectDir}/test_data/reads_2.fastq.gz"""
+        }
+        when {
+            params {
+                input      = "${workDir}/samplesheet.csv"
+                fasta      = "${projectDir}/test_data/genome.fa"
+                gtf        = "${projectDir}/test_data/genes.gtf"
+                star_index = "${projectDir}/test_data/star_index"
+                outdir     = "$outputDir"
             }
         }
+        then {
+            assert !workflow.success
+            assert workflow.stdout.any { it.contains("No successful featureCounts outputs were available to merge") }
+        }
+    }
 }

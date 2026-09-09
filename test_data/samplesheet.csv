@@ -1,2 +1,0 @@
-sample,timepoint,treatment,replicate,strandedness,fastq_1,fastq_2
-sampleA,1,ctrl,1,unstranded,reads_1.fastq.gz,reads_2.fastq.gz
