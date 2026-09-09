@@ -32,8 +32,7 @@ jobs:
           touch test_data/genome.fa
           touch test_data/genes.gtf
           mkdir -p test_data/star_index
-          touch test_data/sample1_R1.fastq.gz
-          touch test_data/sample1_R2.fastq.gz
+
 
       - name: Run pipeline tests
         run: nf-test test tests/main.nf.test
