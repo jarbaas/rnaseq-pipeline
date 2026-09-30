@@ -13,7 +13,7 @@ workflow {
     }
 
     if (params.help) {
-        log.info(paramsHelp("nextflow run main.nf -profile portable --input samplesheet.csv --fasta genome.fa ..."))
+        log.info(paramsHelp())
         exit(0)
     }
 

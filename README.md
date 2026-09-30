@@ -105,3 +105,5 @@ Upon completion, the pipeline automatically defaults the following files to the 
 ## License
 Copyright (C) 2026 Jared Baas. 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See the `LICENSE` file for details.
+
+* The community-provided modules located in the modules/nf-core/ directory are licensed under the MIT License, as defined by the nf-core community.

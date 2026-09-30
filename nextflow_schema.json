@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/YOUR_REPO/nextflow_schema.json",
+  "$id": "https://raw.githubusercontent.com/jarbaas/rnaseq-pipeline/main/nextflow_schema.json",
   "title": "RNA-Seq Pipeline Parameters",
   "type": "object",
   "properties": {
