@@ -101,3 +101,7 @@ Upon completion, the pipeline automatically defaults the following files to the 
 - `pipeline_info/pipeline_dag.html`: A Directed Acyclic Graph mapping the data flow of the completed run.
 
 - `pipeline_info/execution_report.html`: An HTML report detailing runtime metrics and execution data, flagging any samples that may have failed QC and were ignored by the pipeline.
+
+## License
+Copyright (C) 2026 Jared Baas. 
+This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See the `LICENSE` file for details.
