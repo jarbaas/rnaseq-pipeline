@@ -14,15 +14,13 @@ Modular design utilizing existing nf-core/rnaseq modules. Custom build allows fo
 - **Aggregation:** Python/Pandas module builds featureCount outputs into single count matrix
 - **MultiQC:** Aggregates raw and trimmed FastQC reports, FastP quality-control reports, Parabricks alignment logs and QC metrics, and featureCounts summaries into a final HTML report.
 
-## Scenario Questions
-
-_How would you design the input schema and Nextflow channels to dynamically handle the varying replicates across different time points_
+## Usage
 
 The input for this pipeline is a samplesheet CSV file containing sample, timepoint, treatment, replicate, strandedness, fastq_1 and fastq_2 headers. The nf-schema module validates the samplesheet at launch to ensure these columns are in the CSV and the filepaths stored in the fastq columns are properly formatted. The CSV is then parsed via a queue channel that emits a separate tuple for each row of the file. The Nextflow pipeline will dynamically execute each tuple asynchronously across the modules before collecting them together to build the matrix, so the replicate count for a given sample can vary without affecting the pipeline execution.
 
-_How would you structure the pipeline to ensure it is easily scalable, modular, and cloud-ready? The cloud has access to both CPU and GPU and speed and accuracy are important factors._
+The pipeline is modular and scalable because it uses individual modules from nf-core/rnaseq, meaning these modules can be rearranged or replaced easily without having to alter the entire pipeline. It is also scalable by allowing for any number of replicates, timepoints, etc. so a new, larger experiment could still use the same pipeline. The GPU-enabled STAR alignment step vastly reduces runtime while providing BAM file outputs for an informative and accurate QC review. The pipeline uses Docker containers integrated into modules to ensure portability and reproducibility. It also features standard and portable profiles, allowing the pipeline to be run locally or in any cloud platform. Given the pipeline is designed to run on a variety of cloud platforms, it is designed with the recommendation a user will upload a custom configuration file specifying any environment requirements and compute limitations. Specifying max_cpus and max_memory parameters in the custom configuration, for instance, ensures that the built-in resource limits command can handle the user's hardware limitations. 
 
-The pipeline is modular and scalable because it uses individual modules from nf-core/rnaseq, meaning these modules can be rearranged or replaced easily without having to alter the entire pipeline. It is also scalable by allowing for any number of replicates, timepoints, etc. so a new, larger experiment could still use the same pipeline. The GPU-enabled STAR alignment step vastly reduces runtime while providing BAM file outputs for an informative and accurate QC review. The pipeline uses Docker containers integrated into modules to ensure portability and reproducibility. It also features standard and portable profiles, allowing the pipeline to be run locally or in any cloud platform. Given the pipeline is designed to run on a variety of cloud platforms, it is designed with the recommendation a user will upload a custom configuration file specifying any environment requirements and compute limitations. Specifying max_cpus and max_memory parameters in the custom configuration, for instance, ensures that the built-in resource limits command can handle the user's hardware limitations. An example cloud configuration for AWS Batch:
+An example cloud configuration for AWS Batch:
 
 ```
 params {
@@ -59,21 +57,7 @@ params {
 ```
 _Note that max_memory and max_time parameters require the .GB and .h suffix, respectively._
 
-_How would you explain the required input format (e.g., the sample sheet) to me, and how will your pipeline validate that I haven't made a mistake?_
-
-The input file is a sample sheet CSV with seven columns: sample, timepoint, treatment (vehicle or drug label), replicate, strandedness (forward or reverse), fastq_1, fastq_2. Simply fill in the metadata columns with the appropriate information, and write the filepaths to the paired reads generated from Illumina in the fastq columns. The pipeline will automatically validate you have set the file up correctly, and will not run if a particular column name or input format needs adjustment. 
-
-_Suppose I come to you in a panic because Day 5 only yielded 2 viable replicates instead of 5, and one of the Day 13 samples failed QC mid-run and I have no DE genes._
-
-_Explain to me how your pipeline handles these failures without crashing the entire run, and what I will see in the final output._
-
-Firstly, the number of replicates for any particular sample or day will not matter to the pipeline, because it processes each independently and asynchronously. There is no need to worry about the replicate count breaking the pipeline. However, you should be aware that the statistical power of that sample will be reduced during downstream analysis due to the lower number of replicates.
-
-If one of the Day 13 samples fails mid-run, you will notice one of two things.
-
-One possibility is the FASTQ file is computationally valid, but the biological sample is low quality. The sample will be processed by the pipeline, passed into the count matrix, and labeled as 'SURVIVED' in the dropout report. However, you would likely see poor alignment rates in the MultiQC report, and the column for that sample in the count matrix will have mostly zeros. Furthermore, the downstream DESeq2 analysis would not identify differentially expressed genes for that sample. In that scenario, we can use the reports to confirm the sample failed biologically and drop it from the matrix before proceeding. A benefit of producing BAM files with the STAR alignment is that it allows us to run further targeted QC diagnostics in case one of our samples has a problem.
-
-In a second scenario, an invalid sample file triggers a computational error at the FASTP, Parabricks alignment, or featureCounts steps. The pipeline will ignore that specific sample and safely continue processing the rest. The failed sample will not be featured in the final count matrix, and the dropout report will explicitly label that sample as a 'DROPOUT'. We can then look at the Nextflow execution report to see exactly which step triggered the failure.
+An invalid sample file triggers a computational error at the FASTP, Parabricks alignment, or featureCounts steps. The pipeline will ignore that specific sample and safely continue processing the rest. The failed sample will not be featured in the final count matrix, and the dropout report will explicitly label that sample as a 'DROPOUT'. The Nextflow execution report can be accessed to see which step triggered the failure.
 
 ## Run Command
 
